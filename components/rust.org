@@ -1,0 +1,19 @@
+#+TITLE: rust
+#+PROPERTY: header-args :tangle yes
+
+Rust editing using the built-in =rust-mode= / =rust-ts-mode= and =eglot= with
+=rust-analyzer= for completion, navigation and diagnostics.  Install via
+rustup (=rustup component add rust-analyzer=) or Homebrew (=brew install rust-analyzer=).
+
+#+BEGIN_SRC emacs-lisp
+(defun kwarks/rust-setup ()
+  (setq-local tab-width 4
+              indent-tabs-mode nil)
+  (kwarks/eglot-ensure-if "rust-analyzer"))
+
+(add-hook 'rust-mode-hook #'kwarks/rust-setup)
+(add-hook 'rust-ts-mode-hook #'kwarks/rust-setup)
+
+(when (and (fboundp 'treesit-ready-p) (treesit-ready-p 'rust t))
+  (add-to-list 'major-mode-remap-alist '(rust-mode . rust-ts-mode)))
+#+END_SRC

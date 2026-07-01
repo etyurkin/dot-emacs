@@ -58,6 +58,7 @@ enabled component below.
 - [ ] [[file:components/scala.org][scala]]
 - [X] [[file:components/java.org][java]]
 - [X] [[file:components/kotlin.org][kotlin]]
+- [X] [[file:components/rust.org][rust]]
 - [ ] [[file:components/scheme.org][scheme]]
 - [ ] [[file:components/racket.org][racket]]
 - [ ] [[file:components/dart.org][dart]]

@@ -185,7 +185,7 @@ C/C++ toolchain on =exec-path=.
 
 #+BEGIN_SRC emacs-lisp
 (defconst kwarks/treesit-auto-install-languages
-  '(elisp java kotlin python commonlisp)
+  '(elisp java kotlin python rust commonlisp)
   "Tree-sitter grammars installed on startup when absent.")
 
 (defun kwarks/treesit--ensure-grammar (lang)

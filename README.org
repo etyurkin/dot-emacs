@@ -47,6 +47,7 @@ If native-comp fails to find libgccjit, set =LIBRARY_PATH= (see [[https://github
 ** Optional external tools
 Some components expect external programs on the PATH:
 - =python= :: a language server (=pylsp=, =pyright= or =jedi-language-server=) for eglot.
+- =rust= :: =rust-analyzer= (via rustup or Homebrew).
 - =lisp= :: =sbcl= for the SLY REPL.
 - =weather= :: =curl=.
 - =jinx= spell checking :: =enchant= + =pkg-config= and a dictionary backend
