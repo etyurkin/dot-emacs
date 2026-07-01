@@ -76,3 +76,15 @@ enabled component below.
 - [X] [[file:components/phscroll.org][phscroll — horizontal scroll for org tables]]
 - [ ] [[file:components/org-brain.org][org-brain]]
 - [X] [[file:components/mermaid.org][mermaid — render Mermaid diagrams inline in Org]]
+
+* Tools
+- [X] [[file:components/http.org][http]]
+- [X] [[file:components/emagent.org][emagent — Emacs-native ACP chat]]
+- [X] [[file:components/devdocs.org][devdocs — offline API docs]]
+- [ ] [[file:components/ellama.org][ellama - AI assistant]]
+- [ ] [[file:components/nov.org][nov - EPUB reader]]
+- [ ] [[file:components/weather.org][weather]]
+- [ ] [[file:components/eww-tweaks.org][eww-tweaks]]
+- [ ] [[file:components/dired-sidebar.org][dired-sidebar]]
+- [ ] [[file:components/latex.org][latex]]
+- [ ] [[file:components/annot.org][annot]]
