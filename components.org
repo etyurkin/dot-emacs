@@ -6,3 +6,6 @@ enabled component below.
 
 * Theme and UI
 - [X] [[file:components/theme.org][Theme and visual customization]]
+
+* Completion
+- [X] [[file:components/completion.org][Completion framework (vertico, consult, corfu, ...)]]
