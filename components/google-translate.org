@@ -1,0 +1,20 @@
+#+TITLE: google-translate
+#+PROPERTY: header-args :tangle yes
+
+English ↔ Russian/Spanish translation via Google Translate.
+
+- =C-c t= translates word at point or region (en → ru by default).
+- =C-c T= opens a smooth prompt — choose source and target language interactively.
+
+#+BEGIN_SRC emacs-lisp
+(use-package google-translate
+  :custom
+  (google-translate-default-source-language "en")
+  (google-translate-default-target-language "ru")
+  (google-translate-show-phonetic t)
+  (google-translate-translation-directions-alist
+   '(("en" . "ru") ("ru" . "en") ("en" . "es") ("es" . "en")))
+  :bind
+  ("C-c t" . google-translate-at-point)
+  ("C-c T" . google-translate-smooth-translate))
+#+END_SRC
