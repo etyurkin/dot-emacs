@@ -2,16 +2,6 @@
 
 Literate, component-based Emacs (30+).
 
-** How it works
-=init.el= bootstraps [[https://github.com/progfolio/elpaca][Elpaca]], installs =elpaca-use-package=, waits so
-=use-package= =:ensure= expands correctly, then:
-1. reads the checkbox manifest in =components.org=,
-2. tangles =config.org= plus enabled =components/*.org= into =config.el=,
-3. byte-compiles and loads it (another Elpaca wait drains installs queued while loading).
-
-=package.el= is off at startup (=early-init.el=).  Supplemental packages may also live under =elpa/=.
-
-=config.el= is regenerated when =components.org=, =config.org=, =init.el=, or an enabled component changes; it is git-ignored—edit the =.org= sources only.
 
 ** Layout
 - =early-init.el= :: pre-frame: GC, disable =package.el= startup, theme/frame cache.
@@ -20,6 +10,11 @@ Literate, component-based Emacs (30+).
 - =config.org= :: always tangled: core settings, sessions/desktop, GnuPG, =kwarks/*= helpers.
 - =components.org= :: manifest of optional features and languages.
 - =components/<name>.org= :: one file per component.
+- =lisp/ext/= :: custom elisp, autoloaded on demand.
+- =lisp/private/= :: optional private extensions (git-ignored).
+- =fonts/= :: JetBrains Mono.
+- =elpa/= :: vendored ELPA packages.
+- =githooks/= :: commit-msg hook.
 
 ** Adding a component
 1. Add an entry to =components.org= under the right category.
