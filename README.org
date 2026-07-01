@@ -17,6 +17,7 @@ Literate, component-based Emacs (30+).
 - =early-init.el= :: pre-frame: GC, disable =package.el= startup, theme/frame cache.
 - =init.el= :: Elpaca bootstrap, tangle/byte-compile, load =config=.
 - =Makefile= :: =make compile= / =make clean= for generated config.
+- =config.org= :: always tangled: core settings, sessions/desktop, GnuPG, =kwarks/*= helpers.
 
 ** Rebuilding manually
 #+begin_src sh
