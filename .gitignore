@@ -1,0 +1,5 @@
+*.elc
+/config.el
+/components/*.el
+/elpaca/
+/lisp/private

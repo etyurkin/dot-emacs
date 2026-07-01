@@ -1,0 +1,3 @@
+* Personal Emacs config
+
+Literate, component-based Emacs configuration.
