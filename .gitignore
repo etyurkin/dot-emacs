@@ -59,6 +59,7 @@ site-lisp/package/
 /org-brain
 /config.el
 /cache/
+/transient/
 /package-quickstart.el
 /package-quickstart.elc
 /core.el
