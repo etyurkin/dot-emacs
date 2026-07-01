@@ -3,9 +3,23 @@
 Literate, component-based Emacs (30+).
 
 ** How it works
-=init.el= bootstraps [[https://github.com/progfolio/elpaca][Elpaca]],
-tangles org sources into =config.el=, and loads it.
+=init.el= bootstraps [[https://github.com/progfolio/elpaca][Elpaca]], installs =elpaca-use-package=, waits so
+=use-package= =:ensure= expands correctly, then:
+1. reads the checkbox manifest in =components.org=,
+2. tangles =config.org= plus enabled =components/*.org= into =config.el=,
+3. byte-compiles and loads it (another Elpaca wait drains installs queued while loading).
+
+=package.el= is off at startup (=early-init.el=).  Supplemental packages may also live under =elpa/=.
+
+=config.el= is regenerated when =components.org=, =config.org=, =init.el=, or an enabled component changes; it is git-ignored—edit the =.org= sources only.
 
 ** Layout
 - =early-init.el= :: pre-frame: GC, disable =package.el= startup, theme/frame cache.
 - =init.el= :: Elpaca bootstrap, tangle/byte-compile, load =config=.
+- =Makefile= :: =make compile= / =make clean= for generated config.
+
+** Rebuilding manually
+#+begin_src sh
+make compile
+make clean
+#+end_src
