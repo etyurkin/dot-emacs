@@ -3,7 +3,9 @@
 Literate, component-based Emacs (30+).
 
 ** How it works
-=early-init.el= runs before the frame: GC, disable =package.el= at startup.
+=init.el= bootstraps [[https://github.com/progfolio/elpaca][Elpaca]],
+tangles org sources into =config.el=, and loads it.
 
 ** Layout
 - =early-init.el= :: pre-frame: GC, disable =package.el= startup, theme/frame cache.
+- =init.el= :: Elpaca bootstrap, tangle/byte-compile, load =config=.
