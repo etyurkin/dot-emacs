@@ -1,0 +1,343 @@
+#+TITLE: Theme
+#+PROPERTY: header-args :tangle yes
+
+Theme and visual customization: doom-themes, frame styling, org-mode faces,
+modeline colors, font setup and GUI suppression.
+
+** Theme helper functions
+#+BEGIN_SRC emacs-lisp
+(require 'color)
+
+(defun kwarks/usable-color-p (color)
+  "Non-nil when COLOR is a string Emacs can turn into RGB."
+  (and (stringp color)
+       (not (member color '("unspecified-bg" "unspecified-fg" "unspecified")))
+       (color-name-to-rgb color)
+       color))
+
+(defun kwarks/default-background ()
+  "Return the default background as a usable color string.
+Tries the default face (resolving inheritance) and then the frame's
+`background-color' parameter, because on some Emacs versions (e.g.
+emacs-plus@31) `face-background' returns \"unspecified-bg\" while theme
+colors are being applied.  Falls back to black only as a last resort."
+  (or (kwarks/usable-color-p (face-background 'default nil t))
+      (kwarks/usable-color-p (frame-parameter nil 'background-color))
+      "#000000"))
+
+(defun kwarks/dark-theme-p ()
+  "Return non-nil when the default background is dark.
+Decided from the background's actual luminance rather than the frame's
+`background-mode' parameter, which is not reliably set on all Emacs
+versions (e.g. emacs-plus@31) when theme colors are applied."
+  (let ((rgb (color-name-to-rgb (kwarks/default-background))))
+    ;; RGB components are 0..1; their sum is 0..3, so < 1.5 is dark.
+    (and rgb (< (apply #'+ rgb) 1.5))))
+
+(defmacro kwarks/if-dark-theme (action else-action)
+  `(if (kwarks/dark-theme-p)
+       ,action
+     ,else-action))
+
+(defun kwarks/color-from-theme (lighter-percentage darker-percentage)
+  (let ((bg-color (kwarks/default-background)))
+    (kwarks/if-dark-theme
+     (color-lighten-name bg-color lighter-percentage)
+     (color-darken-name bg-color darker-percentage))))
+#+END_SRC
+
+** Visual bell
+Flash modeline for visual bell
+
+#+BEGIN_SRC emacs-lisp
+(setq visible-bell nil
+      ring-bell-function
+      (lambda ()
+        (let ((fg (face-foreground 'mode-line))
+              (bg (face-background 'mode-line)))
+          (set-face-background 'mode-line "#30363F")
+          (set-face-foreground 'mode-line "#30363F")
+          (run-with-idle-timer 0.1 nil `(lambda ()
+                                          (set-face-background 'mode-line ,bg)
+                                          (set-face-foreground 'mode-line ,fg))))))
+#+END_SRC
+
+** Highlight current line
+Ignore line wrappings and highlight entire line for org headers
+
+#+BEGIN_SRC emacs-lisp
+(defun visual-line-range ()
+  (save-excursion
+    (cons
+     (progn (vertical-motion 0) (point))
+     (progn (vertical-motion 1) (point)))))
+
+(setq hl-line-range-function 'visual-line-range)
+
+(global-hl-line-mode 1)
+#+END_SRC
+
+** visual-line
+#+BEGIN_SRC emacs-lisp
+(setq visual-line-fringe-indicators '(left-curly-arrow right-curly-arrow))
+(global-visual-line-mode 1)
+#+END_SRC
+
+** Theme cache
+Write the active theme's colors and font to =theme-cache.el= so =early-init.el=
+can apply them to =default-frame-alist= before the frame is created on the next
+start.  This eliminates the white flash and the small-window-then-resize dance
+(the latter is caused by the font being applied after the frame was sized).
+We persist on =after-setting-font-hook= and =kill-emacs-query-functions=.
+This block is tangled *before* =load-theme 'doom-one= so the =load-theme= :after
+advice is already installed when the theme first loads (otherwise the first
+load would skip cache refresh and font reapply).
+=load-theme= must not rewrite the cached font from the current frame: the
+theme resets the default face (e.g. Doom back to 14pt), which would clobber a
+user size (12) saved for =early-init=.  After theme we only refresh colors and
+=ns-appearance=, and keep the font line already on disk.  We also reapply that
+font to the =default= face after init (and on new frames): =default-frame-alist=
+alone is not enough once the theme has set :height on =default=.
+
+#+BEGIN_SRC emacs-lisp
+(defun kwarks/save-theme-cache--persistable-font (font)
+  "Return a font string safe to store in theme-cache.el, or nil.
+Normalize font objects (e.g. NS) to a string via `font-xlfd-name' / `font-get'."
+  (let ((s (cond ((null font) nil)
+                 ((stringp font) (and (not (string-empty-p font)) font))
+                 ((fontp font)
+                  (or (and (fboundp 'font-xlfd-from-font) (font-xlfd-from-font font))
+                      (and (fboundp 'font-xlfd-name) (font-xlfd-name font))
+                      (ignore-errors (font-get font :name))))
+                 (t nil))))
+    (when (and (stringp s) (not (string-empty-p s)))
+      (let ((spec (ignore-errors (font-spec :name s))))
+        (cond ((and spec (fboundp 'find-font) (find-font spec)) s)
+              ((string-prefix-p "-" s) s)
+              (t nil))))))
+
+(defun kwarks/save-theme-cache--default-font-for-save ()
+  "Font string to persist: actual glyph font, then :font attribute, then frame.
+The Options / font panel often updates what you see without updating the frame
+`font' parameter, so `face-font' is checked before `face-attribute'."
+  (let ((f (or (condition-case nil (face-font 'default nil 'default) (error nil))
+               (condition-case nil (face-attribute 'default :font) (error nil)))))
+    (when (memq f '(unspecified nil)) (setq f nil))
+    (kwarks/save-theme-cache--persistable-font
+     (or f (frame-parameter (selected-frame) 'font)))))
+
+(defun kwarks--theme-cache-read-persisted-font ()
+  "Return the `font' value from theme-cache.el, or nil if missing/unreadable."
+  (catch 'kwarks--theme-cache-font
+    (let ((file (expand-file-name "theme-cache.el" kwarks/cache-directory)))
+      (when (file-exists-p file)
+        (ignore-errors
+          (with-temp-buffer
+            (insert-file-contents file)
+            (goto-char (point-min))
+            (while (not (eobp))
+              (let ((form (read (current-buffer))))
+                (when (eq (car-safe form) 'push)
+                  (let ((cell (nth 1 form)))
+                    (while (eq (car-safe cell) 'quote)
+                      (setq cell (cadr cell)))
+                    (when (and (consp cell) (eq (car cell) 'font))
+                      (throw 'kwarks--theme-cache-font (cdr cell)))))))))))))
+
+(defun kwarks/reapply-theme-cache-font ()
+  "Prefer JetBrains Mono when installed; else reapply font from theme-cache.el."
+  (when (display-graphic-p)
+    (unless (kwarks/set-theme-font)
+      (when-let* ((font (kwarks--theme-cache-read-persisted-font)))
+        (condition-case err
+            (progn
+              (set-face-attribute 'default nil :font font)
+              (dolist (fr (frame-list))
+                (when (and (frame-live-p fr) (frame-parameter fr 'display))
+                  (with-selected-frame fr
+                    (set-face-attribute 'default nil :font font)))))
+          (error (message "kwarks: reapply cached font: %S" err)))))))
+
+(defun kwarks/save-theme-cache (&optional after-theme)
+  "Write current theme colors and font to theme-cache.el.
+These are pushed into `default-frame-alist' by early-init.el before the
+frame exists, so the window starts with the right colors AND font.
+Caching the font is what prevents the late resize: desktop restores the
+frame size in character units, so the frame must already use the final
+font when those characters are mapped to pixels, otherwise applying the
+font afterwards re-maps the grid and the frame shrinks.
+Frame geometry itself is left to desktop-restore which already handles it.
+
+When AFTER-THEME is non-nil (from `load-theme' :after advice), refresh only
+colors and `ns-appearance' from the frame; keep the font already stored in
+theme-cache.el so a theme's default face does not overwrite the user's
+Options / font-panel size."
+  (when (display-graphic-p)
+    (let* ((cache (expand-file-name "theme-cache.el" kwarks/cache-directory))
+           (frame (selected-frame))
+           (bg (face-background 'default frame))
+           (fg (face-foreground 'default frame))
+           (font (if after-theme
+                     (or (kwarks--theme-cache-read-persisted-font)
+                         (kwarks/save-theme-cache--default-font-for-save))
+                   (or (kwarks/save-theme-cache--default-font-for-save)
+                       (kwarks--theme-cache-read-persisted-font))))
+           (dark-p (eq (frame-parameter frame 'background-mode) 'dark)))
+      (with-temp-file cache
+        (insert ";;; theme-cache.el --- auto-generated, do not edit -*- no-byte-compile: t; lexical-binding: t; -*-\n")
+        (when (and bg (not (member bg '("unspecified-bg" "unspecified-fg"))))
+          (insert (format "(push '(background-color . %S) default-frame-alist)\n" bg)))
+        (when (and fg (not (member fg '("unspecified-bg" "unspecified-fg"))))
+          (insert (format "(push '(foreground-color . %S) default-frame-alist)\n" fg)))
+        (when font
+          (insert (format "(push '(font . %S) default-frame-alist)\n" font)))
+        (when dark-p
+          (insert "(push '(ns-appearance . dark) default-frame-alist)\n"))))))
+
+(defun kwarks/save-theme-cache--on-quit-query ()
+  "Write theme-cache before exit; return t so quitting is not blocked."
+  (when (display-graphic-p)
+    (ignore-errors (kwarks/save-theme-cache)))
+  t)
+
+(defun kwarks/save-theme-cache--after-font-change ()
+  "Persist theme cache after Options / font panel changes the default font."
+  (when (display-graphic-p)
+    (ignore-errors (kwarks/save-theme-cache))))
+
+(defun kwarks/save-theme-cache-after-theme (&rest _)
+  "Refresh cached theme colors; reapply cached font so Doom does not win."
+  (when (display-graphic-p)
+    (ignore-errors (kwarks/save-theme-cache 'after-theme))
+    (kwarks/reapply-theme-cache-font)))
+
+(advice-add 'load-theme :after #'kwarks/save-theme-cache-after-theme)
+(add-hook 'after-init-hook #'kwarks/reapply-theme-cache-font t)
+(add-hook 'kill-emacs-query-functions #'kwarks/save-theme-cache--on-quit-query)
+(add-hook 'after-setting-font-hook #'kwarks/save-theme-cache--after-font-change)
+#+END_SRC
+
+** Main theme
+#+BEGIN_SRC emacs-lisp
+(defmacro kwarks/with-make-frame (&rest body)
+  `(if (daemonp)
+       (add-hook 'after-make-frame-functions
+                 (lambda (&rest args) (progn ,@body)) t)
+     ,@body))
+
+(defconst kwarks/theme-font-family "JetBrains Mono")
+
+(defun kwarks/theme-font-size ()
+  (or (let ((font (kwarks--theme-cache-read-persisted-font)))
+        (when font
+          (condition-case nil
+              (font-get (if (fontp font) font (font-decode font)) :size)
+            (error nil))))
+      12))
+
+(defun kwarks/set-theme-font ()
+  "Use JetBrains Mono when installed. Install TTFs from ~/.emacs.d/fonts/ first."
+  (when (and (display-graphic-p)
+             (member kwarks/theme-font-family (font-family-list)))
+    (set-frame-font (format "%s-%d" kwarks/theme-font-family (kwarks/theme-font-size)) t)
+    (set-face-attribute 'fixed-pitch nil :inherit 'default)
+    t))
+
+(defun kwarks/set-cursor-color ()
+  (set-face-background 'cursor (kwarks/color-from-theme 100 100)))
+
+(defun kwarks/set-hl-line-color ()
+  (set-face-background 'hl-line (kwarks/color-from-theme 6 7)))
+
+(defun kwarks/set-region-color ()
+  (set-face-background 'region (color-lighten-name "#2D383E" 10)))
+
+(defun kwarks/set-border-color ()
+  (let ((color (kwarks/color-from-theme 5 10)))
+    (set-face-attribute 'mode-line nil :foreground "gray" :background 'unspecified :box nil :overline color)
+    (set-face-attribute 'mode-line-inactive nil :background 'unspecified :box nil :foreground "gray" :overline color)
+    (set-face-attribute 'vertical-border nil :background 'unspecified :foreground color)))
+
+(defun kwarks/set-titlebar-style ()
+  (set-frame-parameter nil 'ns-transparent-titlebar t)
+  (kwarks/if-dark-theme
+   (set-frame-parameter nil 'ns-appearance 'dark)
+   (set-frame-parameter nil 'ns-appearance nil)))
+
+(defun kwarks/set-theme-colors (&rest args)
+  (kwarks/set-cursor-color)
+  (kwarks/set-hl-line-color)
+  (kwarks/set-region-color)
+  (kwarks/set-border-color)
+  (kwarks/set-titlebar-style)
+  (set-frame-parameter nil 'alpha '(90 . 90)))
+
+(defun kwarks/disable-other-themes (&rest _)
+  "Disable already-enabled themes before loading a new one."
+  (mapc #'disable-theme custom-enabled-themes))
+
+(advice-add 'load-theme :before #'kwarks/disable-other-themes)
+(advice-add 'load-theme :after #'kwarks/set-theme-colors)
+
+(defun kwarks/set-theme-faces ()
+  (custom-set-faces
+   `(cursor                   ((t (:background ,(kwarks/color-from-theme 100 100)))))
+   '(font-lock-comment-face   ((t (:slant italic :background unspecified))))
+   '(trailing-whitespace      ((t (:foreground "gray"     :background "gray"))))
+   '(fringe                   ((t (:foreground "SkyBlue4" :background unspecified))))))
+
+(defun kwarks/setup-frame (&rest args)
+  "Apply titlebar theme for new frames"
+  (kwarks/set-titlebar-style)
+  (kwarks/set-theme-colors)
+  (kwarks/set-theme-faces)
+  (when after-init-time
+    (kwarks/reapply-theme-cache-font)))
+
+(kwarks/with-make-frame (kwarks/setup-frame))
+(add-hook 'after-make-frame-functions 'kwarks/setup-frame t)
+
+(use-package doom-themes
+  :init
+  (setq doom-one-brighter-comments t)
+  ;; Break a face-inheritance cycle that Emacs 30+ flags loudly: Gnus defines
+  ;; `gnus-group-news-low' to inherit `gnus-group-news-low-empty', while
+  ;; doom-themes makes the -empty face inherit the non-empty one -- a loop.
+  ;; Pinning a top-priority user spec for both (before `load-theme') gives a
+  ;; clean, non-cyclic chain so the warning never fires.
+  (custom-set-faces
+   '(gnus-group-news-low ((t (:inherit gnus-group-mail-1))))
+   '(gnus-group-news-low-empty ((t (:inherit gnus-group-mail-1-empty)))))
+  (condition-case err
+      (load-theme 'doom-one t)
+    (error (message "load-theme doom-one failed: %S" err))))
+#+END_SRC
+
+
+** org-mode visuals
+Headline / block / ellipsis faces are left to =doom-one= plus [[file:org-modern.org][org-modern]].
+Overriding them here with =custom-set-faces= was winning after =org-modern= loaded,
+which made buffers look “un-modernized” and wrong versus the theme.
+
+#+BEGIN_SRC emacs-lisp
+(require 'org)
+(add-to-list 'org-emphasis-alist
+             '("*" (:foreground "red")))
+
+(kwarks/with-make-frame
+ (let ((font-size (if (or (cygwin-p) (ms-windows-p))
+                      100 130)))
+   (custom-set-faces
+    ;; Agenda-only tweaks (org-modern does not replace these layouts).
+    '(org-done                ((t (:strike-through t))))
+    '(org-headline-done       ((t (:strike-through t))))
+    '(org-agenda-done         ((t (:strike-through t))))
+    `(org-agenda-date         ((t (:foreground "gray" :height ,font-size :weight normal))))
+    `(org-agenda-date-weekend ((t (:height ,font-size :weight normal))))
+    `(org-agenda-structure    ((t (:height ,font-size :weight normal))))
+    `(org-agenda-date-today   ((t (:foreground "#a9a1e1" :weight normal :slant italic :height ,font-size)))))))
+
+(custom-set-variables
+ '(org-pretty-entities t)
+ '(org-hide-emphasis-markers t))
+#+END_SRC
