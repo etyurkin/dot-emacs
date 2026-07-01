@@ -1,0 +1,71 @@
+#+TITLE: org-modern
+#+PROPERTY: header-args :tangle yes
+
+Prettier Org faces (blocks, tags, priorities, foldable headline markers).
+Pairs with Consult: allow =global-org-modern-mode= during previews so
+=consult-line= and friends do not strip the styling.
+
+Fringe metrics are synced once on =window-setup-hook= after the first GUI frame
+exists (so block fringe lines match the current font).
+
+Pipe tables stay on plain Org rendering (=org-modern-table= off). Timestamps
+use org-modern styling everywhere except inside pipe-table lines.
+
+#+BEGIN_SRC emacs-lisp
+(defun kwarks/org-modern--configure ()
+  (setq org-modern-table nil)
+  (custom-set-faces
+   '(org-table ((t (:inherit fixed-pitch))))
+   '(org-date ((t (:inherit fixed-pitch))))
+   '(org-timestamp ((t (:inherit fixed-pitch))))
+   '(org-timestamp-inactive ((t (:inherit fixed-pitch))))))
+
+(defun kwarks/org-modern--timestamp-outside-tables (orig &rest args)
+  (unless (save-excursion
+            (goto-char (match-beginning 0))
+            (beginning-of-line)
+            (looking-at "^[ \t]*|"))
+    (apply orig args)))
+
+(defun kwarks/org--table-buffer-setup ()
+  (visual-line-mode -1)
+  (setq-local truncate-lines t)
+  (setq-local face-remapping-alist
+              (append '((org-default . fixed-pitch)) face-remapping-alist)))
+
+(use-package org-modern
+  :after (org consult)
+  :init
+  (setq org-modern-table nil
+        org-modern-timestamp t)
+  (with-eval-after-load 'consult
+    (add-to-list 'consult-preview-allowed-hooks 'global-org-modern-mode))
+  :config
+  (setq org-modern-star 'fold
+        ;; Default level-3 chars ⯈/⯆ (U+2BC8/U+2BC6) absent from
+        ;; JetBrainsMono.  Use Geometric Shapes block only (U+25xx).
+        org-modern-fold-stars
+        '(("▶" . "▼") ("▷" . "▽") ("▸" . "▾") ("▹" . "▿") ("▸" . "▾")))
+  (kwarks/org-modern--configure)
+  (with-eval-after-load 'org-modern
+    (advice-add #'org-modern--table :override (lambda (&rest _) nil))
+    (advice-add #'org-modern--timestamp :around #'kwarks/org-modern--timestamp-outside-tables))
+  (add-hook 'org-mode-hook #'kwarks/org-modern--configure)
+  (add-hook 'org-mode-hook #'kwarks/org--table-buffer-setup t)
+  (global-org-modern-mode 1)
+  (custom-set-faces
+   '(org-level-1 ((t (:foreground "#51afef" :background unspecified))))
+   '(org-level-2 ((t (:foreground "#c678dd" :background unspecified))))
+   '(org-level-3 ((t (:foreground "#a9a1e1" :background unspecified)))))
+  (setq org-fontify-quote-and-verse-blocks t)
+  (set-face-attribute 'org-quote nil :slant 'italic)
+  (add-hook 'window-setup-hook
+            (lambda ()
+              (when (and (display-graphic-p)
+                         (fboundp 'org-modern--update-bitmaps)
+                         (fboundp 'org-modern--update-faces))
+                (ignore-errors
+                  (org-modern--update-bitmaps)
+                  (org-modern--update-faces))))
+            t))
+#+END_SRC

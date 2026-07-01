@@ -1,0 +1,15 @@
+#+TITLE: phscroll
+#+PROPERTY: header-args :tangle yes
+
+Enables horizontal scrolling in specific buffer regions while keeping
+line-wrapping active.  Used by emagent to prevent org table rows from
+wrapping while leaving prose with visual-line wrapping.
+
+See [[https://github.com/misohena/phscroll][misohena/phscroll]] on GitHub.
+
+#+BEGIN_SRC emacs-lisp
+(use-package phscroll
+  :ensure (:host github :repo "misohena/phscroll" :depth 1)
+  :demand t
+  :config (require 'org-phscroll))
+#+END_SRC

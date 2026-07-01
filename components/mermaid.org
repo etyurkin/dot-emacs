@@ -1,0 +1,59 @@
+#+TITLE: mermaid
+#+PROPERTY: header-args :tangle yes
+
+Render Mermaid diagrams inline in Org-mode via org-babel.
+
+Before this works, install the rendering tool from a terminal:
+
+#+begin_src sh :tangle no
+npm install -g @mermaid-js/mermaid-cli
+#+end_src
+
+This installs =mmdc=, which uses Puppeteer (headless Chrome) to convert
+Mermaid DSL to PNG/SVG.
+
+Usage in an Org file:
+
+: #+begin_src mermaid :file my-diagram.png :results file
+: graph LR
+:   A --> B
+: #+end_src
+
+Place point inside the block and press =C-c C-c= — the rendered image appears
+inline under the block.
+
+* SVG rendering fix
+Emacs' built-in SVG renderer (rsvg) drops text labels inside =<foreignObject>=
+elements.  Create a config file to disable HTML labels:
+
+#+begin_src sh :tangle no
+mkdir -p ~/.config/mermaid
+#+end_src
+
+Write =~/.config/mermaid/config.json=:
+
+: {
+:   "htmlLabels": false,
+:   "flowchart": {
+:     "htmlLabels": false
+:   }
+: }
+
+And point =ob-mermaid= at it via the config block below.
+
+* Configuration
+#+begin_src emacs-lisp
+(use-package ob-mermaid
+  :after org
+  :init
+  ;; Point mmdc at the config that disables foreignObject labels so Emacs
+  ;; SVG renderer can display them.  Adjust the path if your config lives
+  ;; elsewhere.
+  (setq ob-mermaid-default-config-file
+        (expand-file-name "~/.config/mermaid/config.json"))
+  :config
+  (with-eval-after-load 'org
+    (add-to-list 'org-babel-load-languages '(mermaid . t))
+    (org-babel-do-load-languages
+     'org-babel-load-languages org-babel-load-languages)))
+#+end_src
