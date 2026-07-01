@@ -67,7 +67,7 @@ enabled component below.
 - [ ] [[file:components/swift.org][swift]]
 - [ ] [[file:components/csharp.org][csharp]]
 
-* Org mode
+* Org Mode
 - [X] [[file:components/org-wiki.org][org-wiki]]
 - [X] [[file:components/denote.org][denote]]
 - [X] [[file:components/org-extras.org][org-extras]]
@@ -75,6 +75,7 @@ enabled component below.
 - [X] [[file:components/org-appear.org][org-appear]]
 - [X] [[file:components/phscroll.org][phscroll — horizontal scroll for org tables]]
 - [ ] [[file:components/org-brain.org][org-brain]]
+
 - [X] [[file:components/mermaid.org][mermaid — render Mermaid diagrams inline in Org]]
 
 * Tools

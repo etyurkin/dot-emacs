@@ -2,27 +2,54 @@
 
 Literate, component-based Emacs (30+).
 
+** How it works
+=init.el= bootstraps [[https://github.com/progfolio/elpaca][Elpaca]], installs =elpaca-use-package=, waits so
+=use-package= =:ensure= expands correctly, then:
+1. reads the checkbox manifest in =components.org=,
+2. tangles =config.org= plus enabled =components/*.org= into =config.el=,
+3. byte-compiles and loads it (another Elpaca wait drains installs queued while loading).
+
+=package.el= is off at startup (=early-init.el=).  Supplemental packages may also live under =elpa/=.
+
+=config.el= is regenerated when =components.org=, =config.org=, =init.el=, or an enabled component changes; it is git-ignored—edit the =.org= sources only.
+
+If things look wrong (e.g. =M-x= or theme) after tangling or experiments, Emacs
+may still be loading stale =config.el= / =config.elc= / natcomp =config-*.eln=.
+Remove them with =make clean= (or delete those files by hand), then restart.
+On the next start, changed =.org= sources also remove stale =config.el= /
+=config.elc= before retangling.
 
 ** Layout
 - =early-init.el= :: pre-frame: GC, disable =package.el= startup, theme/frame cache.
 - =init.el= :: Elpaca bootstrap, tangle/byte-compile, load =config=.
-- =Makefile= :: =make compile= / =make clean= for generated config.
+- =components.org= :: the manifest, organized by category. Toggle =[ ]= / =[X]=
+  to disable/enable a component, then restart Emacs. Each entry is an org link
+  to the component file -- follow it to open or create the component.
 - =config.org= :: always tangled: core settings, sessions/desktop, GnuPG, =kwarks/*= helpers.
-- =components.org= :: manifest of optional features and languages.
-- =components/<name>.org= :: one file per component.
-- =lisp/ext/= :: custom elisp, autoloaded on demand.
-- =lisp/private/= :: optional private extensions (git-ignored).
-- =fonts/= :: JetBrains Mono.
-- =elpa/= :: vendored ELPA packages.
-- =githooks/= :: commit-msg hook.
+- =components/<name>.org= :: one file per optional feature or language.
+- =lisp/ext/= :: custom elisp scripts, always loaded.
+- =lisp/private/= :: optional private extensions (git-ignored), loaded if present.
 
 ** Adding a component
-1. Add an entry to =components.org= under the right category.
-2. Create =components/foo.org=.
-3. Flip =[ ]= to =[X]= and restart.
+1. Add =- [ ] [[file:components/foo.org][foo]]= to the appropriate category in =components.org=.
+2. Follow the link -- a starter template is inserted automatically.
+3. Flip it to =[X]= and restart.
 
 ** Rebuilding manually
 #+begin_src sh
-make compile
-make clean
+make compile   # tangle + byte-compile config.el
+make clean     # remove generated artifacts
 #+end_src
+
+** macOS native-comp
+If native-comp fails to find libgccjit, set =LIBRARY_PATH= (see [[https://github.com/d12frosted/homebrew-emacs-plus/issues/323][homebrew-emacs-plus#323]]).
+
+** Optional external tools
+Some components expect external programs on the PATH:
+- =python= :: a language server (=pylsp=, =pyright= or =jedi-language-server=) for eglot.
+- =lisp= :: =sbcl= for the SLY REPL.
+- =weather= :: =curl=.
+- =jinx= spell checking :: =enchant= + =pkg-config= and a dictionary backend
+  (=brew install enchant pkg-config=; aspell/hunspell come in as deps). The
+  native module compiles on first use.
+- =org-download= :: =pngpaste= (=brew install pngpaste=).
