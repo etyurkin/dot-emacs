@@ -1,0 +1,86 @@
+#+TITLE: lisp
+#+PROPERTY: header-args :tangle yes
+
+Common Lisp and Emacs Lisp tooling.  =electric-pair-mode=, =rainbow-delimiters=
+and =highlight-symbol= already come from core; this adds structured editing and
+a modern Common Lisp REPL.  Requires SBCL on PATH (=brew install sbcl=) and
+Quicklisp bootstrapped in =~/quicklisp/=.
+
+* File associations
+#+BEGIN_SRC emacs-lisp
+(add-to-list 'auto-mode-alist '("\\.sexp\\'" . lisp-mode))
+#+END_SRC
+
+* Neutralize stale SLIME
+We migrated from SLIME to SLY.  The old =slime= package may still be installed,
+and its autoloads unconditionally add =slime-lisp-mode-hook= to
+=lisp-mode-hook=, which makes SLY prompt about a conflict on every session.
+Remove it so SLY owns Lisp editing.
+
+#+BEGIN_SRC emacs-lisp
+(remove-hook 'lisp-mode-hook 'slime-lisp-mode-hook)
+#+END_SRC
+
+* sly
+SLY is the actively maintained successor to SLIME: comint-based multi-REPL,
+live sticker annotations, multiple inspectors, and native integration with
+the Emacs completion API (Corfu/Vertico work without extra config).
+
+#+BEGIN_SRC emacs-lisp
+(use-package sly
+  :init
+  (setq inferior-lisp-program "sbcl"
+        sly-net-coding-system 'utf-8-unix)
+  :config
+  (add-to-list 'auto-mode-alist '("\\.cl\\'" . lisp-mode)))
+#+END_SRC
+
+* sly-asdf
+ASDF system loading integration — adds a featureful =sly-load-system= that
+searches for =.asd= files upward from the current buffer.
+
+#+BEGIN_SRC emacs-lisp
+(use-package sly-asdf
+  :after sly)
+#+END_SRC
+
+* sly-quicklisp
+Quicklisp integration.  Adds a =,ql= REPL shortcut with tab-completion over
+all installable Quicklisp systems.
+
+#+BEGIN_SRC emacs-lisp
+(use-package sly-quicklisp
+  :after sly)
+#+END_SRC
+
+* sly-macrostep
+Expand Common Lisp macros inline inside source files with =macrostep-expand=
+(=C-c RET=).  No separate buffer needed.
+
+#+BEGIN_SRC emacs-lisp
+(use-package sly-macrostep
+  :after sly)
+#+END_SRC
+
+* paredit
+#+BEGIN_SRC emacs-lisp
+(use-package paredit
+  :hook ((emacs-lisp-mode
+          lisp-mode
+          lisp-interaction-mode
+          lisp-data-mode
+          scheme-mode) . enable-paredit-mode))
+#+END_SRC
+
+* aggressive-indent
+#+BEGIN_SRC emacs-lisp
+(use-package aggressive-indent
+  :init
+  (add-hook 'lisp-mode-hook 'aggressive-indent-mode)
+  (add-hook 'emacs-lisp-mode-hook 'aggressive-indent-mode))
+#+END_SRC
+
+* Emacs Lisp tree-sitter
+[[https://github.com/Wilfred/tree-sitter-elisp][tree-sitter-elisp]] grammar is
+auto-installed with the other languages in [[file:programming.org][programming.org]]
+(=kwarks/treesit-auto-install-languages=).

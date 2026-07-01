@@ -1,0 +1,18 @@
+#+TITLE: kotlin
+#+PROPERTY: header-args :tangle yes
+
+Kotlin editing using =kotlin-mode= and =eglot= with the Kotlin Language Server.
+Install the language server via Homebrew (=brew install kotlin-language-server=)
+or download from [[https://github.com/fwcd/kotlin-language-server][github.com/fwcd/kotlin-language-server]] and put =kotlin-language-server=
+on your PATH.
+
+#+BEGIN_SRC emacs-lisp
+(use-package kotlin-mode
+  :mode "\\.kts?\\'"
+  :config
+  (defun kwarks/kotlin-setup ()
+    (setq-local tab-width 4
+                indent-tabs-mode nil)
+    (kwarks/eglot-ensure-if "kotlin-language-server"))
+  (add-hook 'kotlin-mode-hook #'kwarks/kotlin-setup))
+#+END_SRC

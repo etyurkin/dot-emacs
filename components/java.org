@@ -1,0 +1,46 @@
+#+TITLE: java
+#+PROPERTY: header-args :tangle yes
+
+Java 17+ development using the built-in =java-ts-mode= (Emacs 29+), =eglot-java=
+for automatic JDTLS setup and project commands, and =gradle-mode= for Gradle
+build files.  Install the Eclipse JDT Language Server via Homebrew
+(=brew install jdtls=) or let =eglot-java= download it automatically on first use.
+
+** eglot-java
+
+Wraps eglot with JDTLS-specific extensions: auto-downloads the language server
+when missing, handles =jdt://= class-file URIs for source navigation, and adds
+commands like =eglot-java-project-build-refresh= and =eglot-java-file-new=.
+
+#+BEGIN_SRC emacs-lisp
+(use-package eglot-java
+  :hook ((java-mode java-ts-mode) . eglot-java-mode)
+  :config
+  ;; Java 21 to run JDT.LS (1.50+ requires 21+); project code targets Java 17.
+  (setq eglot-java-java-program
+        (concat (string-trim (shell-command-to-string "jenv prefix 21")) "/bin/java"))
+  (setq eglot-java-java-home
+        "/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home"))
+#+END_SRC
+
+** Gradle
+
+#+BEGIN_SRC emacs-lisp
+(use-package gradle-mode
+  :mode "\\.gradle\\'")
+#+END_SRC
+
+** Formatting and indentation
+
+#+BEGIN_SRC emacs-lisp
+(defun kwarks/java-setup ()
+  (setq-local c-basic-offset 4
+              tab-width 4
+              indent-tabs-mode nil))
+
+(add-hook 'java-mode-hook #'kwarks/java-setup)
+(add-hook 'java-ts-mode-hook #'kwarks/java-setup)
+
+(when (and (fboundp 'treesit-ready-p) (treesit-ready-p 'java t))
+  (add-to-list 'major-mode-remap-alist '(java-mode . java-ts-mode)))
+#+END_SRC

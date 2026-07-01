@@ -1,0 +1,16 @@
+#+TITLE: markdown
+#+PROPERTY: header-args :tangle yes
+
+Markdown editing via =markdown-mode=.  Provides syntax highlighting, section
+navigation, live preview (=C-c C-c p=), and GitHub-Flavored Markdown support.
+Requires a Markdown processor on PATH (=multimarkdown= or =markdown=) for preview.
+
+#+BEGIN_SRC emacs-lisp
+(use-package markdown-mode
+  :mode (("\\.md\\'" . gfm-mode)
+         ("\\.markdown\\'" . markdown-mode))
+  :init
+  (setq markdown-command (or (executable-find "multimarkdown")
+                             (executable-find "markdown")
+                             "markdown")))
+#+END_SRC
