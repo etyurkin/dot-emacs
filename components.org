@@ -1,0 +1,5 @@
+#+TITLE: Emacs Components
+
+Toggle a component by flipping =[ ]= (off) to =[X]= (on) and restarting Emacs.
+On the next start =config.el= is regenerated from [[file:config.org][config.org]] plus every
+enabled component below.

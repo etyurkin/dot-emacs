@@ -18,6 +18,13 @@ Literate, component-based Emacs (30+).
 - =init.el= :: Elpaca bootstrap, tangle/byte-compile, load =config=.
 - =Makefile= :: =make compile= / =make clean= for generated config.
 - =config.org= :: always tangled: core settings, sessions/desktop, GnuPG, =kwarks/*= helpers.
+- =components.org= :: manifest of optional features and languages.
+- =components/<name>.org= :: one file per component.
+
+** Adding a component
+1. Add an entry to =components.org= under the right category.
+2. Create =components/foo.org=.
+3. Flip =[ ]= to =[X]= and restart.
 
 ** Rebuilding manually
 #+begin_src sh
