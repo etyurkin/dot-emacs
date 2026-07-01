@@ -1,3 +1,9 @@
 * Personal Emacs config
 
-Literate, component-based Emacs configuration.
+Literate, component-based Emacs (30+).
+
+** How it works
+=early-init.el= runs before the frame: GC, disable =package.el= at startup.
+
+** Layout
+- =early-init.el= :: pre-frame: GC, disable =package.el= startup, theme/frame cache.
