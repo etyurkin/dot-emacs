@@ -122,10 +122,42 @@ This is helpful for writeroom-mode, in particular."
 GnuPG support: transparently read and write =.gpg= files and enable org-crypt.
 
 #+BEGIN_SRC emacs-lisp
+(defun kwarks/gpg-decrypt-error-message ()
+  "Human-readable message when epa-file fails to decrypt a .gpg buffer."
+  (cond
+   ((and (boundp 'epa-file-error) epa-file-error (nth 3 epa-file-error))
+    (format "Wrong GPG passphrase: %s" (nth 3 epa-file-error)))
+   ((and (boundp 'epa-file-error) epa-file-error
+         (let ((text (mapconcat (lambda (x) (if (stringp x) x ""))
+                               epa-file-error " ")))
+           (string-match-p "not permitted" text)))
+    "macOS denied GPG access; grant Emacs Full Disk Access in System Settings")
+   ((and (boundp 'epa-file-error) epa-file-error)
+    (mapconcat #'identity (cdr epa-file-error) ": "))
+   (t "GPG decryption failed; run `gpg --decrypt FILE' in a terminal")))
+
+(defun kwarks/find-file-noselect-1--epa-decrypt-error (orig-fun buf &rest args)
+  "Turn find-file-noselect-1's arrayp nil into a clear gpg failure message.
+
+When epa-file decryption fails it kills the buffer, but find-file-noselect-1
+still calls file-truename on a dead buffer — Emacs surfaces that as a cryptic
+wrong-type-argument instead of the real gpg error."
+  (condition-case-unless-debug err
+      (apply orig-fun buf args)
+    (wrong-type-argument (data)
+      (when (and (equal data '(arrayp nil))
+                 (or (not (buffer-live-p buf))
+                     (null buffer-file-name)))
+        (user-error "%s" (kwarks/gpg-decrypt-error-message)))
+      (signal (car err) (cdr err)))))
+
 (unless-windows
  (require 'epa-file)
  (custom-set-variables `(epg-gpg-program  ,(if (osx-p) "/opt/homebrew/bin/gpg" "gpg")))
- (epa-file-enable))
+ (epa-file-enable)
+ (when (executable-find "gpg-connect-agent")
+   (ignore-errors (call-process "gpg-connect-agent" nil 0 nil "/bye")))
+ (advice-add #'find-file-noselect-1 :around #'kwarks/find-file-noselect-1--epa-decrypt-error))
 #+END_SRC
 
 Keep =dabbrev= and =cape-dabbrev= from harvesting completion candidates out of
