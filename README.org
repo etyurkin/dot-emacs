@@ -1,6 +1,4 @@
-* Personal Emacs config
-
-Literate, component-based Emacs (30+).
+* Literate, component-based Emacs configuration (Emacs 30+).
 
 ** How it works
 =init.el= bootstraps [[https://github.com/progfolio/elpaca][Elpaca]], installs =elpaca-use-package=, waits so
